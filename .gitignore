@@ -1,4 +1,4 @@
-dist
+# dist  # Commented out so GitHub Actions can use the built files
 .idea
 .vscode
 
