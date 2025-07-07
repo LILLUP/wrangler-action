@@ -2,7 +2,7 @@ import { summary } from "@actions/core";
 import { context, getOctokit } from "@actions/github";
 import { env } from "process";
 import { info, warn } from "../utils";
-import { OutputEntryPagesDeployment } from "../wranglerArtifactManager";
+import { OutputEntryPagesDeployment, OutputEntryDeployment } from "../wranglerArtifactManager";
 import { WranglerActionConfig } from "../wranglerAction";
 
 type Octokit = ReturnType<typeof getOctokit>;
@@ -57,6 +57,55 @@ export async function createGitHubDeployment({
 	});
 }
 
+export async function createWorkersGitHubDeployment({
+	config,
+	octokit,
+	deploymentUrl,
+	workerName,
+}: {
+	config: WranglerActionConfig;
+	octokit: Octokit;
+	deploymentUrl?: string;
+	workerName?: string;
+}) {
+	const githubBranch = env.GITHUB_HEAD_REF || env.GITHUB_REF_NAME;
+	const environment = githubBranch === "main" || githubBranch === "master" ? "production" : "preview";
+	const productionEnvironment = environment === "production";
+
+	const deployment = await octokit.rest.repos.createDeployment({
+		owner: context.repo.owner,
+		repo: context.repo.repo,
+		ref: githubBranch || context.ref,
+		auto_merge: false,
+		description: "Cloudflare Workers",
+		required_contexts: [],
+		environment,
+		production_environment: productionEnvironment,
+	});
+
+	if (deployment.status !== 201) {
+		info(config, "Error creating GitHub deployment");
+		return;
+	}
+
+	const logUrl = workerName 
+		? `https://dash.cloudflare.com/${config.CLOUDFLARE_ACCOUNT_ID}/workers/services/view/${workerName}`
+		: `https://dash.cloudflare.com/${config.CLOUDFLARE_ACCOUNT_ID}/workers`;
+
+	await octokit.rest.repos.createDeploymentStatus({
+		owner: context.repo.owner,
+		repo: context.repo.repo,
+		deployment_id: deployment.data.id,
+		environment,
+		environment_url: deploymentUrl,
+		production_environment: productionEnvironment,
+		log_url: logUrl,
+		description: "Cloudflare Workers",
+		state: "success",
+		auto_inactive: false,
+	});
+}
+
 export async function createJobSummary({
 	commitHash,
 	deploymentUrl,
@@ -76,6 +125,30 @@ export async function createJobSummary({
 | **Last commit:**        | ${commitHash} |
 | **Preview URL**:        | ${deploymentUrl} |
 | **Branch Preview URL**: | ${aliasUrl} |
+  `,
+		)
+		.write();
+}
+
+export async function createJobSummaryForWorkers({
+	commitHash,
+	deploymentUrl,
+	workerName,
+}: {
+	commitHash?: string;
+	deploymentUrl?: string;
+	workerName?: string;
+}) {
+	await summary
+		.addRaw(
+			`
+# Deploying with Cloudflare Workers
+
+| Name                    | Result |
+| ----------------------- | - |
+${commitHash ? `| **Last commit:**        | ${commitHash} |` : ''}
+${workerName ? `| **Worker Name:**        | ${workerName} |` : ''}
+| **Deployment URL**:     | ${deploymentUrl || 'N/A'} |
   `,
 		)
 		.write();
@@ -123,6 +196,52 @@ export async function createGitHubDeploymentAndJobSummary(
 
 		if (createJobSummaryRes.status === "rejected") {
 			warn(config, "Creating Github Job summary failed");
+		}
+	}
+}
+
+/**
+ * Create github deployment, if GITHUB_TOKEN is present in config
+ */
+export async function createWorkersGitHubDeploymentAndJobSummary(
+	config: WranglerActionConfig,
+	workersArtifactFields: OutputEntryDeployment,
+) {
+	if (config.GITHUB_TOKEN) {
+		const octokit = getOctokit(config.GITHUB_TOKEN);
+		const deploymentUrl = workersArtifactFields.targets?.[0];
+		
+		// Extract worker name from deployment URL if possible
+		let workerName: string | undefined;
+		if (deploymentUrl) {
+			const match = deploymentUrl.match(/https:\/\/([^.]+)\./);
+			workerName = match?.[1];
+		}
+
+		// Get commit hash from git context
+		const commitHash = context.sha?.substring(0, 8);
+
+		const [createGitHubDeploymentRes, createJobSummaryRes] =
+			await Promise.allSettled([
+				createWorkersGitHubDeployment({
+					config,
+					octokit,
+					deploymentUrl,
+					workerName,
+				}),
+				createJobSummaryForWorkers({
+					commitHash,
+					deploymentUrl,
+					workerName,
+				}),
+			]);
+
+		if (createGitHubDeploymentRes.status === "rejected") {
+			warn(config, "Creating Workers Github Deployment failed");
+		}
+
+		if (createJobSummaryRes.status === "rejected") {
+			warn(config, "Creating Workers Github Job summary failed");
 		}
 	}
 }

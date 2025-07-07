@@ -6,7 +6,7 @@ import {
 	OutputEntryPagesDeployment,
 	OutputEntryVersionUpload,
 } from "./wranglerArtifactManager";
-import { createGitHubDeploymentAndJobSummary } from "./service/github";
+import { createGitHubDeploymentAndJobSummary, createWorkersGitHubDeploymentAndJobSummary } from "./service/github";
 
 // fallback to trying to extract the deployment-url and pages-deployment-alias-url from stdout for wranglerVersion < 3.81.0
 function extractDeploymentUrlsFromStdout(stdOut: string): {
@@ -90,6 +90,9 @@ function handleWranglerDeployOutputEntry(
 	}
 
 	setOutput("deployment-url", wranglerDeployOutputEntry.targets[0]);
+
+	// Create github deployment for Workers, if GITHUB_TOKEN is present in config
+	createWorkersGitHubDeploymentAndJobSummary(config, wranglerDeployOutputEntry);
 }
 
 /**

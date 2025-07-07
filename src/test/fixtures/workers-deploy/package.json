@@ -1,0 +1,13 @@
+{
+  "name": "my-awesome-worker",
+  "version": "1.0.0",
+  "description": "A simple Cloudflare Worker",
+  "main": "src/worker.js",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "devDependencies": {
+    "wrangler": "^3.81.0"
+  }
+}

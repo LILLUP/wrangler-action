@@ -1,0 +1,10 @@
+name = "my-awesome-worker"
+main = "src/worker.js"
+compatibility_date = "2024-07-07"
+compatibility_flags = ["nodejs_compat"]
+
+[env.production]
+name = "my-awesome-worker-prod"
+
+[env.preview]
+name = "my-awesome-worker-preview"
