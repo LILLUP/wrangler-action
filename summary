@@ -1,0 +1,25 @@
+
+# Deploying with Cloudflare Workers
+
+| Name                    | Result |
+| ----------------------- | - |
+
+| **Worker Name:**        | my-worker |
+| **Deployment URL**:     | https://my-worker.example.workers.dev |
+  
+# Deploying with Cloudflare Workers
+
+| Name                    | Result |
+| ----------------------- | - |
+
+| **Worker Name:**        | my-custom-domain |
+| **Deployment URL**:     | https://my-custom-domain.com |
+  
+# Deploying with Cloudflare Workers
+
+| Name                    | Result |
+| ----------------------- | - |
+
+| **Worker Name:**        | nextjs |
+| **Deployment URL**:     | nextjs.aisk-svr.net (custom domain) |
+  

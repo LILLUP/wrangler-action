@@ -82,16 +82,40 @@ declare const OutputEntryVersionUpload: z.ZodObject<z.objectUtil.extendShape<{
     type: z.ZodString;
 }, {
     type: z.ZodLiteral<"version-upload">;
+    /** The worker name */
+    worker_name: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    /** The worker tag */
+    worker_tag: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    /** The version ID */
+    version_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     /** The preview URL associated with this version upload */
     preview_url: z.ZodOptional<z.ZodString>;
+    /** The preview alias URL associated with this version upload */
+    preview_alias_url: z.ZodOptional<z.ZodString>;
+    /** The wrangler environment used */
+    wrangler_environment: z.ZodOptional<z.ZodString>;
+    /** Whether the worker name was overridden */
+    worker_name_overridden: z.ZodOptional<z.ZodBoolean>;
 }>, "strip", z.ZodTypeAny, {
     type: "version-upload";
     version: 1;
+    worker_name?: string | null | undefined;
+    worker_tag?: string | null | undefined;
+    version_id?: string | null | undefined;
     preview_url?: string | undefined;
+    preview_alias_url?: string | undefined;
+    wrangler_environment?: string | undefined;
+    worker_name_overridden?: boolean | undefined;
 }, {
     type: "version-upload";
     version: 1;
+    worker_name?: string | null | undefined;
+    worker_tag?: string | null | undefined;
+    version_id?: string | null | undefined;
     preview_url?: string | undefined;
+    preview_alias_url?: string | undefined;
+    wrangler_environment?: string | undefined;
+    worker_name_overridden?: boolean | undefined;
 }>;
 export type SupportedOutputEntry = z.infer<typeof SupportedOutputEntry>;
 declare const SupportedOutputEntry: z.ZodDiscriminatedUnion<"type", [z.ZodObject<z.objectUtil.extendShape<{
@@ -172,16 +196,40 @@ declare const SupportedOutputEntry: z.ZodDiscriminatedUnion<"type", [z.ZodObject
     type: z.ZodString;
 }, {
     type: z.ZodLiteral<"version-upload">;
+    /** The worker name */
+    worker_name: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    /** The worker tag */
+    worker_tag: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    /** The version ID */
+    version_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     /** The preview URL associated with this version upload */
     preview_url: z.ZodOptional<z.ZodString>;
+    /** The preview alias URL associated with this version upload */
+    preview_alias_url: z.ZodOptional<z.ZodString>;
+    /** The wrangler environment used */
+    wrangler_environment: z.ZodOptional<z.ZodString>;
+    /** Whether the worker name was overridden */
+    worker_name_overridden: z.ZodOptional<z.ZodBoolean>;
 }>, "strip", z.ZodTypeAny, {
     type: "version-upload";
     version: 1;
+    worker_name?: string | null | undefined;
+    worker_tag?: string | null | undefined;
+    version_id?: string | null | undefined;
     preview_url?: string | undefined;
+    preview_alias_url?: string | undefined;
+    wrangler_environment?: string | undefined;
+    worker_name_overridden?: boolean | undefined;
 }, {
     type: "version-upload";
     version: 1;
+    worker_name?: string | null | undefined;
+    worker_tag?: string | null | undefined;
+    version_id?: string | null | undefined;
     preview_url?: string | undefined;
+    preview_alias_url?: string | undefined;
+    wrangler_environment?: string | undefined;
+    worker_name_overridden?: boolean | undefined;
 }>]>;
 /**
  * Parses file names in a directory to find wrangler artifact files

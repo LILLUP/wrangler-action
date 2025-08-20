@@ -1,5 +1,5 @@
 import { getOctokit } from "@actions/github";
-import { OutputEntryPagesDeployment, OutputEntryDeployment } from "../wranglerArtifactManager";
+import { OutputEntryPagesDeployment, OutputEntryDeployment, OutputEntryVersionUpload } from "../wranglerArtifactManager";
 import { WranglerActionConfig } from "../wranglerAction";
 type Octokit = ReturnType<typeof getOctokit>;
 export declare function createGitHubDeployment({ config, octokit, productionBranch, environment, deploymentId, projectName, deploymentUrl, }: {
@@ -35,4 +35,8 @@ export declare function createGitHubDeploymentAndJobSummary(config: WranglerActi
  * Create github deployment, if GITHUB_TOKEN is present in config
  */
 export declare function createWorkersGitHubDeploymentAndJobSummary(config: WranglerActionConfig, workersArtifactFields: OutputEntryDeployment): Promise<void>;
+/**
+ * Create github deployment for Workers Versions, if GITHUB_TOKEN is present in config
+ */
+export declare function createWorkersVersionsGitHubDeploymentAndJobSummary(config: WranglerActionConfig, versionsArtifactFields: OutputEntryVersionUpload): Promise<void>;
 export {};

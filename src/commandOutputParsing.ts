@@ -6,7 +6,7 @@ import {
 	OutputEntryPagesDeployment,
 	OutputEntryVersionUpload,
 } from "./wranglerArtifactManager";
-import { createGitHubDeploymentAndJobSummary, createWorkersGitHubDeploymentAndJobSummary } from "./service/github";
+import { createGitHubDeploymentAndJobSummary, createWorkersGitHubDeploymentAndJobSummary, createWorkersVersionsGitHubDeploymentAndJobSummary } from "./service/github";
 
 // fallback to trying to extract the deployment-url and pages-deployment-alias-url from stdout for wranglerVersion < 3.81.0
 function extractDeploymentUrlsFromStdout(stdOut: string): {
@@ -112,9 +112,24 @@ function handleWranglerDeployCommand(
 }
 
 function handleVersionsUploadOutputEntry(
+	config: WranglerActionConfig,
 	versionsOutputEntry: OutputEntryVersionUpload,
 ) {
-	setOutput("deployment-url", versionsOutputEntry.preview_url);
+	// Prefer preview_url over preview_alias_url
+	const deploymentUrl = versionsOutputEntry.preview_url || versionsOutputEntry.preview_alias_url;
+	
+	if (!deploymentUrl) {
+		info(config, "No deployment URL found in versions upload output entry");
+		return;
+	}
+	
+	setOutput("deployment-url", deploymentUrl);
+
+	// Create github deployment for Workers Versions, if GITHUB_TOKEN is present in config
+	createWorkersVersionsGitHubDeploymentAndJobSummary(config, {
+		...versionsOutputEntry,
+		preview_url: deploymentUrl, // Ensure preview_url is set for the GitHub deployment function
+	});
 }
 
 /**
@@ -177,7 +192,7 @@ export async function handleCommandOutputParsing(
 			handleWranglerDeployOutputEntry(config, outputEntry);
 			break;
 		case "version-upload":
-			handleVersionsUploadOutputEntry(outputEntry);
+			handleVersionsUploadOutputEntry(config, outputEntry);
 			break;
 	}
 }

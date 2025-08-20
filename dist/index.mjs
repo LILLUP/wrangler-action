@@ -36789,8 +36789,20 @@ const OutputEntryDeployment = OutputEntryBase.merge(z.object({
 }));
 const OutputEntryVersionUpload = OutputEntryBase.merge(z.object({
     type: z.literal("version-upload"),
+    /** The worker name */
+    worker_name: z.string().nullable().optional(),
+    /** The worker tag */
+    worker_tag: z.string().nullable().optional(),
+    /** The version ID */
+    version_id: z.string().nullable().optional(),
     /** The preview URL associated with this version upload */
     preview_url: z.string().optional(),
+    /** The preview alias URL associated with this version upload */
+    preview_alias_url: z.string().optional(),
+    /** The wrangler environment used */
+    wrangler_environment: z.string().optional(),
+    /** Whether the worker name was overridden */
+    worker_name_overridden: z.boolean().optional(),
 }));
 const SupportedOutputEntry = z.discriminatedUnion("type", [
     OutputEntryPagesDeployment,
@@ -37102,6 +37114,70 @@ async function createWorkersGitHubDeploymentAndJobSummary(config, workersArtifac
         }
     }
 }
+/**
+ * Create github deployment for Workers Versions, if GITHUB_TOKEN is present in config
+ */
+async function createWorkersVersionsGitHubDeploymentAndJobSummary(config, versionsArtifactFields) {
+    if (config.GITHUB_TOKEN) {
+        const octokit = (0,github.getOctokit)(config.GITHUB_TOKEN);
+        const deploymentUrl = versionsArtifactFields.preview_url;
+        // Extract worker name from deployment URL if possible
+        let workerName;
+        if (deploymentUrl) {
+            // Clean up the URL by removing any descriptive text in parentheses
+            let cleanedUrl = deploymentUrl.replace(/\s*\([^)]*\)\s*$/, '').trim();
+            // Try to extract worker name from standard workers.dev URL
+            const workersDevMatch = cleanedUrl.match(/https:\/\/([^.]+)\.([^.]+\.)?workers\.dev/);
+            if (workersDevMatch) {
+                workerName = workersDevMatch[1];
+            }
+            else {
+                // For custom domains, try to extract from subdomain or use hostname
+                try {
+                    // Add protocol if missing for URL parsing
+                    let urlToParse = cleanedUrl;
+                    if (!cleanedUrl.startsWith('http://') && !cleanedUrl.startsWith('https://')) {
+                        urlToParse = `https://${cleanedUrl}`;
+                    }
+                    const url = new URL(urlToParse);
+                    const hostname = url.hostname;
+                    // Use the first part of the hostname as worker name for custom domains
+                    workerName = hostname.split('.')[0];
+                }
+                catch (error) {
+                    // If URL parsing fails, continue without worker name
+                    info(config, `Could not parse deployment URL for worker name: ${deploymentUrl}`);
+                }
+            }
+        }
+        // Get commit hash from git context
+        const commitHash = github.context.sha?.substring(0, 8);
+        try {
+            const [createGitHubDeploymentRes, createJobSummaryRes] = await Promise.allSettled([
+                createWorkersGitHubDeployment({
+                    config,
+                    octokit,
+                    deploymentUrl,
+                    workerName,
+                }),
+                createJobSummaryForWorkers({
+                    commitHash,
+                    deploymentUrl,
+                    workerName,
+                }),
+            ]);
+            if (createGitHubDeploymentRes.status === "rejected") {
+                warn(config, `Creating Workers Versions Github Deployment failed: ${createGitHubDeploymentRes.reason}`);
+            }
+            if (createJobSummaryRes.status === "rejected") {
+                warn(config, `Creating Workers Versions Github Job summary failed: ${createJobSummaryRes.reason}`);
+            }
+        }
+        catch (error) {
+            warn(config, `Failed to create Workers Versions GitHub deployment: ${error}`);
+        }
+    }
+}
 
 ;// CONCATENATED MODULE: ./src/commandOutputParsing.ts
 
@@ -37172,8 +37248,19 @@ function handleWranglerDeployCommand(config, stdOut) {
     const { deploymentUrl } = extractDeploymentUrlsFromStdout(stdOut);
     (0,core.setOutput)("deployment-url", deploymentUrl);
 }
-function handleVersionsUploadOutputEntry(versionsOutputEntry) {
-    (0,core.setOutput)("deployment-url", versionsOutputEntry.preview_url);
+function handleVersionsUploadOutputEntry(config, versionsOutputEntry) {
+    // Prefer preview_url over preview_alias_url
+    const deploymentUrl = versionsOutputEntry.preview_url || versionsOutputEntry.preview_alias_url;
+    if (!deploymentUrl) {
+        info(config, "No deployment URL found in versions upload output entry");
+        return;
+    }
+    (0,core.setOutput)("deployment-url", deploymentUrl);
+    // Create github deployment for Workers Versions, if GITHUB_TOKEN is present in config
+    createWorkersVersionsGitHubDeploymentAndJobSummary(config, {
+        ...versionsOutputEntry,
+        preview_url: deploymentUrl, // Ensure preview_url is set for the GitHub deployment function
+    });
 }
 /**
  * If no wrangler output file found, log a message stating deployment-url will be unavailable for output.
@@ -37216,7 +37303,7 @@ async function handleCommandOutputParsing(config, command, stdOut) {
             handleWranglerDeployOutputEntry(config, outputEntry);
             break;
         case "version-upload":
-            handleVersionsUploadOutputEntry(outputEntry);
+            handleVersionsUploadOutputEntry(config, outputEntry);
             break;
     }
 }

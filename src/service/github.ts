@@ -2,7 +2,7 @@ import { summary } from "@actions/core";
 import { context, getOctokit } from "@actions/github";
 import { env } from "process";
 import { info, warn } from "../utils";
-import { OutputEntryPagesDeployment, OutputEntryDeployment } from "../wranglerArtifactManager";
+import { OutputEntryPagesDeployment, OutputEntryDeployment, OutputEntryVersionUpload } from "../wranglerArtifactManager";
 import { WranglerActionConfig } from "../wranglerAction";
 
 type Octokit = ReturnType<typeof getOctokit>;
@@ -327,6 +327,79 @@ export async function createWorkersGitHubDeploymentAndJobSummary(
 			}
 		} catch (error) {
 			warn(config, `Failed to create Workers GitHub deployment: ${error}`);
+		}
+	}
+}
+
+/**
+ * Create github deployment for Workers Versions, if GITHUB_TOKEN is present in config
+ */
+export async function createWorkersVersionsGitHubDeploymentAndJobSummary(
+	config: WranglerActionConfig,
+	versionsArtifactFields: OutputEntryVersionUpload,
+) {
+	if (config.GITHUB_TOKEN) {
+		const octokit = getOctokit(config.GITHUB_TOKEN);
+		const deploymentUrl = versionsArtifactFields.preview_url;
+		
+		// Extract worker name from deployment URL if possible
+		let workerName: string | undefined;
+		if (deploymentUrl) {
+			// Clean up the URL by removing any descriptive text in parentheses
+			let cleanedUrl = deploymentUrl.replace(/\s*\([^)]*\)\s*$/, '').trim();
+			
+			// Try to extract worker name from standard workers.dev URL
+			const workersDevMatch = cleanedUrl.match(/https:\/\/([^.]+)\.([^.]+\.)?workers\.dev/);
+			if (workersDevMatch) {
+				workerName = workersDevMatch[1];
+			} else {
+				// For custom domains, try to extract from subdomain or use hostname
+				try {
+					// Add protocol if missing for URL parsing
+					let urlToParse = cleanedUrl;
+					if (!cleanedUrl.startsWith('http://') && !cleanedUrl.startsWith('https://')) {
+						urlToParse = `https://${cleanedUrl}`;
+					}
+					
+					const url = new URL(urlToParse);
+					const hostname = url.hostname;
+					// Use the first part of the hostname as worker name for custom domains
+					workerName = hostname.split('.')[0];
+				} catch (error) {
+					// If URL parsing fails, continue without worker name
+					info(config, `Could not parse deployment URL for worker name: ${deploymentUrl}`);
+				}
+			}
+		}
+
+		// Get commit hash from git context
+		const commitHash = context.sha?.substring(0, 8);
+
+		try {
+			const [createGitHubDeploymentRes, createJobSummaryRes] =
+				await Promise.allSettled([
+					createWorkersGitHubDeployment({
+						config,
+						octokit,
+						deploymentUrl,
+						workerName,
+					}),
+					createJobSummaryForWorkers({
+						commitHash,
+						deploymentUrl,
+						workerName,
+					}),
+				]);
+
+			if (createGitHubDeploymentRes.status === "rejected") {
+				warn(config, `Creating Workers Versions Github Deployment failed: ${createGitHubDeploymentRes.reason}`);
+			}
+
+			if (createJobSummaryRes.status === "rejected") {
+				warn(config, `Creating Workers Versions Github Job summary failed: ${createJobSummaryRes.reason}`);
+			}
+		} catch (error) {
+			warn(config, `Failed to create Workers Versions GitHub deployment: ${error}`);
 		}
 	}
 }

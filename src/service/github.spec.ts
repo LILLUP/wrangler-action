@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { setupServer } from "msw/node";
-import { createGitHubDeployment, createJobSummary, createWorkersGitHubDeployment, createJobSummaryForWorkers } from "./github";
+import { createGitHubDeployment, createJobSummary, createWorkersGitHubDeployment, createJobSummaryForWorkers, createWorkersVersionsGitHubDeploymentAndJobSummary } from "./github";
 import { getOctokit } from "@actions/github";
 import { mockGithubDeployments } from "../test/mocks";
 import { getTestConfig } from "../test/test-utils";
@@ -188,6 +188,60 @@ describe("github", () => {
 			| **Branch Preview URL**: | https://fake-alias-url.com |
 			  "
 		`);
+	});
+
+	it("Calls createWorkersVersionsGitHubDeploymentAndJobSummary successfully", async () => {
+		const githubUser = "mock-user";
+		const githubRepoName = "wrangler-action";
+		const server = setupServer(
+			...mockGithubDeployments({ githubUser, githubRepoName }).handlers,
+		);
+		server.listen({ onUnhandledRequest: "error" });
+		vi.stubEnv("GITHUB_REPOSITORY", `${githubUser}/${githubRepoName}`);
+
+		const testConfig = getTestConfig();
+		await createWorkersVersionsGitHubDeploymentAndJobSummary(testConfig, {
+			version: 1,
+			type: "version-upload",
+			preview_url: "https://my-worker.example.workers.dev",
+		});
+		server.close();
+	});
+
+	it("Calls createWorkersVersionsGitHubDeploymentAndJobSummary successfully with custom domain", async () => {
+		const githubUser = "mock-user";
+		const githubRepoName = "wrangler-action";
+		const server = setupServer(
+			...mockGithubDeployments({ githubUser, githubRepoName }).handlers,
+		);
+		server.listen({ onUnhandledRequest: "error" });
+		vi.stubEnv("GITHUB_REPOSITORY", `${githubUser}/${githubRepoName}`);
+
+		const testConfig = getTestConfig();
+		await createWorkersVersionsGitHubDeploymentAndJobSummary(testConfig, {
+			version: 1,
+			type: "version-upload",
+			preview_url: "https://my-custom-domain.com",
+		});
+		server.close();
+	});
+
+	it("Handles versions upload with URLs containing descriptive text", async () => {
+		const githubUser = "mock-user";
+		const githubRepoName = "wrangler-action";
+		const server = setupServer(
+			...mockGithubDeployments({ githubUser, githubRepoName }).handlers,
+		);
+		server.listen({ onUnhandledRequest: "error" });
+		vi.stubEnv("GITHUB_REPOSITORY", `${githubUser}/${githubRepoName}`);
+
+		const testConfig = getTestConfig();
+		await expect(createWorkersVersionsGitHubDeploymentAndJobSummary(testConfig, {
+			version: 1,
+			type: "version-upload",
+			preview_url: "nextjs.aisk-svr.net (custom domain)",
+		})).resolves.not.toThrow();
+		server.close();
 	});
 
 	it("Calls createJobSummaryForWorkers successfully", async () => {

@@ -45,8 +45,20 @@ export type OutputEntryVersionUpload = z.infer<typeof OutputEntryVersionUpload>;
 const OutputEntryVersionUpload = OutputEntryBase.merge(
 	z.object({
 		type: z.literal("version-upload"),
+		/** The worker name */
+		worker_name: z.string().nullable().optional(),
+		/** The worker tag */
+		worker_tag: z.string().nullable().optional(),
+		/** The version ID */
+		version_id: z.string().nullable().optional(),
 		/** The preview URL associated with this version upload */
 		preview_url: z.string().optional(),
+		/** The preview alias URL associated with this version upload */
+		preview_alias_url: z.string().optional(),
+		/** The wrangler environment used */
+		wrangler_environment: z.string().optional(),
+		/** Whether the worker name was overridden */
+		worker_name_overridden: z.boolean().optional(),
 	}),
 );
 
